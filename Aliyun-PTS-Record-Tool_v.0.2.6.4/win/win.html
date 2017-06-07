@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html ng-app="HttpView">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<meta http-equiv="Content-Language" content="zh-cn" />
+		<title>Aliyun PTS Record Tool</title>
+		<link rel="Shortcut Icon" href="img/logo.png" type="image/x-icon" />
+		<link rel="Bookmark" href="img/logo.png" type="image/x-icon" />
+        <script src="lib/jh.js"></script>
+        <script src="lib/requirejs/require.js"></script>
+        <script src="lib/requirejs/requireConf.js"></script>
+        <script src="lib/jquery/jquery-1.11.2.js"></script>
+        <script src="lib/bootstrap-3.2.0/js/bootstrap.js"></script>
+        <script src="lib/angular-1.4.0-beta.6/angular.js"></script>
+		<link href="lib/bootstrap-3.2.0/css/bootstrap.css" type="text/css" rel="stylesheet" media="all" />
+		<link href="lib/bootstrap-3.2.0/css/bootstrap-theme.css" type="text/css" rel="stylesheet" media="all" />
+		<link href="lib/bootstrap-3.2.0/vendor/bootstrap-dialog/bootstrap-dialog.css" type="text/css" rel="stylesheet" media="all" />
+		<link href="handworkTheme.css" type="text/css" rel="stylesheet" media="all" />
+		<link href="win.css" type="text/css" rel="stylesheet" media="all" />
+	</head>
+
+	<body ng-controller="MainCtrl" style="visibility:hidden;">
+		<input type="hidden" name="testEnv" id="testEnv" />
+
+		<div class="container-fluid"><div ng-controller="HttpListCtrl">
+			<!-- <div>
+				Search: <input ng-model="query">
+			</div>
+				Sort by:
+				<select ng-model="orderProp">
+					<option value="index">request</option>
+					<option value="age">Newest</option>
+				</select> -->
+			
+			<nav class="navbar navbar-default navbar-fixed-top _topBar" role="navigation">
+				<div class="container-fluid">
+					<div class="tools clearfix">
+						<div class="ctrl">
+							<div class="navbar-left pull-left btn-group">
+								<button type="button" class="_stopBtn btn btn-rec-default btn-sm btn-ico-pause" ng-class="{disable:stopBtn.disable}" ng-model="stopBtn" ng-click="stop()">停止录制</button>
+								<button type="button" class="_recBtn btn btn-rec-default btn-sm btn-ico-record" ng-class="{disable:recBtn.disable}" ng-model="recBtn" ng-click="rec()" style="display:none;">开始录制</button>
+								<div class="dropdown _filterGroup filter-group">
+									<button type="button" class="_filterBtn btn btn-rec-default btn-sm btn-ico-filter dropdown-toggle" ng-class="{disable:filterBtn.disable}" ng-model="filterBtn" data-toggle@="dropdown" aria-expanded="false">内容筛选<span class="caret" ng-class="{disable:filterBtn.disable}"></span></button>
+										<ul class="dropdown-menu _typeSel " role="menu" id="typeSel">
+											<li class="arrow"></li>
+											<li><span><label><input value="all" type="checkbox" ng-click="showType()">all</label></span></li>
+											<li><span><label><input checked="true" value="html" type="checkbox" ng-click="showType()">html</label></span></li>
+											<li ng-repeat="contentType in typeList">
+												<span><label><input ng-model="t" value="{{contentType}}" type="checkbox" ng-click="showType()">{{contentType}}</label></span>
+											</li>
+										</ul>
+								</div>
+								<button type="button" class="_filterRegBtn btn btn-rec-default btn-sm btn-ico-match dropdown-toggle" ng-click="checkMatchBtnDisable($event)" ng-class="{disable:filteMatchBtn.disable}" ng-model="filterRegBtn" data-toggle@="dropdown" aria-expanded="false" data-toggle="modal" data-target="._ptsMatchView">域名过滤</button>
+								<button type="button" class="_uploadBtn btn btn-rec-default btn-sm btn-ico-upload" ng-click="upload()">上传脚本</button>
+								<button type="button" class="_compressedBtn btn btn-rec-default btn-sm btn-ico-compressed" ng-class="{disable:compressedBtn.disable}" ng-model="compressedBtn" ng-click="buildScript()">脚本预览</button>
+								<button type="button" class="_removeBtn btn btn-rec-default btn-sm btn-ico-remove" ng-class="{disable:removeBtn.disable}" ng-model="removeBtn" ng-click="clearListAll()">清空请求</button>
+								<a type="button" class="btn btn-rec-default btn-sm btn-ico-help" href="http://docs.aliyun.com/#/pub/pts/record-tool-guide/record-tool-guide" target="_blank">帮助手册</a>
+								<a type="button" class="btn btn-rec-default btn-sm btn-update-ver __updataVerBtn" style="display:none;" href="https://pts.aliyun.com/record_version.do" target="_blank">下载最新版本</a>
+							</div>
+							<!-- <span class="navbar-left create-action pull-left btn-group"><input type="text" ng-model="createActionName" class="form-control create-input-text" /><button type="button" class="btn btn-default btn-sm glyphicon glyphicon-plus create-btn" ng-click="createActionAndRec()">创建Action并录制</button></span>
+							<button type="button" class="btn btn-default glyphicon glyphicon-floppy-remove" ng-click="postMsgToBg({msg:'clearList'})">postMsgToBg('clearList')</button> -->
+						</div>
+					</div>
+				</div><!-- /.container-fluid -->
+			</nav>
+			<div class="main row _main">
+				<div class="_httpView">
+					<div class="rec-list _httpList col-xs-12">
+						<div class="stepBox step-box" ng-repeat="step in sortData">
+							<div class="step-name">
+								<span class="step-text">{{step.name}}</span>
+								<span class="add-actiont-btn"ng-click="createActionAndRec(step.type)"><span>添加action</span></span>
+							</div>
+							<div class="action-box _actionBox" ng-repeat="action in step.data" ng-init="bindDataIntoElm(action)">
+								<div class="action _action" ng-class="[action._selClass, action._targetClass, action._hideListClass]">
+									<div class="action-name _actionName" ui-drag="{{action.type}}:action" ui-drop="{{action.type}}:action" ng-click="setSelAction( action, $event)" ng-dblclick="targetToAction(action)" context-menu-close="onCloseActionMenu(action)" context-menu="onShowActionMenu(action, $event)" data-target="menu-actionItem"><div class="action-bar">
+										<span class="action-name-text _actionNameText" ng-dblclick="rename(action, $event)" ng-if="!action.rename">{{action.name}}</span>
+										<span class="cover-input" ng-if="action.rename"></span>
+										<!-- <span class="transaction-name _actionTransactionNameText" ng-if="action.transaction">事务</span> -->
+										<span class="action-tool-bar">
+											<span title="请求数量" class="num" ng-if="getActionShowList(action).length">{{action.filterHttpLength}}</span>
+											<span title="操作Action" class="operate action-btn _operateActionBtn _contextMuneBtn" ng-if="action._selClass" ng-click="onShowActionMenu(action, $event, '#menu-actionItem')"><span>更多操作</span></span>
+											<span title="删除Action" class="del action-btn" ng-if="action._selClass" ng-click="delAction(action)"><span>删除Action</span></span>
+											<span title="折叠展开Action" class="fold action-btn" ng-if="action.filterHttpLength" ng-click="toggleActionListBox(action)"><span>折叠展开</span></span>
+										</span>
+									</div></div>
+									<input type="text" class="_renameInput rename-input" ng-model="action.name" ng-if="action.rename" ng-keypress="renameOkEnter(action, $event)" ng-blur="renameOk(action, $event)" spellcheck="false" />
+									<input type="text" class="_renameTransactionInput rename-input" ng-model="action.transaction" ng-if="action.renameTransaction" ng-keypress="renameTransactionOk(action, $event)" ng-blur="renameTransactionOk(action)" />
+									<div class="action-list _actionList" ng-if="action.list.length && !action._hideListClass"><div class="table table-condensed table-hover http-list">
+											<div class="tr" ng-repeat="http in action.list | filterBy: ['contentType']: typeShowList" ng-class="[  http._statusClass,{'last-sel':http._lastSel}]" ng-click="selHttp($event, http)" context-menu-close="onCloseContextMenu()" context-menu="onShowContextMenu(http)" data-target="menu-httpItem" ng-init="bindDataIntoElm(http, $)" ui-drag="httpItem:http" ui-drop="httpItem:http" bind-data-to-elm="httpData:http"><div class="cur-info-tips" ng-if="http._lastSel" ng-click="hideInfoBox(http);"><span></span></div>
+											  <div class="list-item td"><span class="http-item-method">{{http.method}}</span> <span class="http-item-content-type">{{ http.contentType }}</span> {{http.url}}</div>
+											</div>
+									</div></div>
+								</div>
+							</div>
+						</div>
+						<style type="text/css">
+							.position-fixed {
+							  position: fixed;
+							  /*position:absolute;*/
+							}
+						</style>
+						<!-- <table class="table table-condensed table-hover _ngHideInit" id="httpList">
+							<tbody>
+								<tr ng-repeat="http in httpList | filterBy: ['contentType']: typeShowList" ng-class="http._statusClass" ng-click="showInfo($event, http)">
+								  <th>{{http.index}}</th><td class="list-item">{{http.method}} <b>{{ http.contentType }}</b> {{http.url}}</td>
+								</tr>
+							</tbody>
+						</table> -->
+						<!-- <table class="table table-condensed table-hover _ngHideInit">
+							<tbody>
+								<tr ng-repeat="http in targetAction | filterBy: ['contentType']: typeShowList" ng-class="http._statusClass" ng-click="showInfo($event, http)">
+								  <th>{{http.index}}</th><td class="list-item">{{http.method}} <b>{{ http.contentType }}</b> {{http.url}}</td>
+								</tr>
+							</tbody>
+						</table> -->
+					</div>
+					<div class="info-box _infoBox" ng-controller="InfoBoxCtrl" style="display:none;">
+						<div class="request-info">
+							<ul class="nav nav-tabs" role="tablist">
+								<li role="presentation" class="active"><a class="_requestHeaderPaneTab" href="#request-header-pane" role="tab" data-toggle="tab">Request</a></li>
+								<li role="presentation" ng-if="info.responseHeader"><a href="#response-header-pane" role="tab" data-toggle="tab">Response</a></li>
+								<li role="presentation" ng-if="info.body"><a href="#body-pane" role="tab" data-toggle="tab">Body</a></li>
+								<li role="presentation" ng-if="info.postData"><a href="#form-data-pane" role="tab" data-toggle="tab">PostData</a></li>
+							</ul>
+							<div class="tab-content">
+								<div role="tabpanel" class="tab-pane active" id="request-header-pane"><div class="request-header">
+									<div class="request-header-list">
+										<ul>
+											<li class="conn-info"><span class="request-ex"><em>{{info.method}}</em> <em>{{info.status}}</em></span> {{info.url}}</li>
+											<li ng-repeat="header in info.requestHeader">
+												<em>{{header[0]}}</em> : &nbsp;&nbsp;<span>{{header[1]}}</span>
+											</li>
+										</ul>
+									</div>
+								</div></div>
+								<div role="tabpanel" class="tab-pane" id="form-data-pane">
+									<ul>
+										<li ng-repeat="data in info._dataArray">
+											<em>{{data[0]}}</em> = &nbsp;&nbsp;<span>{{data[1]}}</span>
+										</li>
+										<li ng-if ="info._dataBlock">
+											<span>{{info._dataBlock}}</span>
+										</li>
+									</ul>
+								</div>
+								<div role="tabpanel" class="tab-pane" id="response-header-pane"><div class="response-header">
+									<div class="response-header-list">
+										<ul>
+											<li ng-repeat="header in info.responseHeader">
+												<em>{{header[0]}}</em> : &nbsp;&nbsp;<span>{{header[1]}}</span>
+											</li>
+										</ul>
+									</div>
+								</div></div>
+								<div role="tabpanel" class="tab-pane" id="body-pane">
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="pts-script-view _ptsScriptView" style="display:none;">
+					<div class="view-title">脚本预览: </div>
+					<div class="view-body">
+						<div class="code-body">
+							<textarea id="ptsScriptInput" class="_ptsScript form-control" ng-model="ptsScript" spellcheck="false" readonly></textarea>
+							<!-- <iframe class="_mcShow mc-show" src="lib/codeMirror/codemirror.html"></iframe> -->
+						</div>
+					</div>
+					<div class="view-footer">
+						<button class="btn btn-style2 btn-style2-primary back-btn" ng-click="toHttpView();">返回</button>
+					</div>
+				</div>
+
+
+			</div>
+
+
+			<div class="modal _ptsMatchView match-view" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">
+				<div class="modal-dialog modal-lg">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">×</span><span class="sr-only">Close</span></button>
+							<h4 class="modal-title" id="myLargeModalLabel">域名过滤</h4>
+						</div>
+						<div class="modal-body">
+							<div class="list-title"><span class="match-title">主机名（可包含通配符，如：*.taobao.com）</span><span class="rult-title">行为</span></div>
+							<div class="match-list">
+								<ul class="match-list-box">
+									<li ng-repeat="oMatch in matchList" class="li" ng-class="oMatch._editMatchClass">
+										<div class="str" ng-click="showEditMatchStr(oMatch)"><span class="title">{{oMatch.str}}</span><input type="text" ng-model="oMatch.str" ng-focus="oMatch._editMatchClass === 'ecit-match-str'" ng-blur="saveMatchStr(oMatch)" spellcheck="false" ng-keypress="saveMatchStr(oMatch, $event)" /></div>
+										<div class="rule" ng-click="showEditMatchRule(oMatch)"><span class="text">{{oMatch.rule}}</span><select ng-model="oMatch.rule" ng-options="o for o in ruleList" ng-blur="saveMatchRule(oMatch)" ng-focus="oMatch._editMatchClass === 'ecit-match-rule'"></select></div>
+										<span class="_delMatchBtn del-match-btn" ng-click="delMatch(oMatch)"><span>删除</span></span>
+									</li>
+								</ul>
+								<ul>
+									<li>
+										<div class="str"><input type="text" placeholder="*.domain.com" ng-model="addMatchStr" ng-blur="addMatch()" spellcheck="false" ng-keypress="addMatch($event)" /></div>
+										<div class="rule"><select ng-model="addMatchRule" ng-options="o for o in ruleList"></select></div>
+									</li>
+								</ul>
+							</div>
+							<div class="modal-footer">
+								<span class="text">您可以指定允许录制或禁止录制的域名，以免对脚本运行产生干扰</span>
+								<button class="btn btn-style2 btn-style2-primary ok-btn" data-dismiss="modal" aria-hidden="true">确定</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+		</div></div>
+
+
+		<div class="row navbar-fixed-top _tipsBox tips-box col-md-4 col-md-offset-4" style="display:none;">
+			<div class="alert alert-info _tipsContent">
+				<button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+				<div class="_tipsText ">脚本中必须至少有一个Action，已经为您自动创建。</div>
+			</div>
+		</div>
+
+		<div class="dropdown position-fixed context-menu" id="menu-httpItem" ng-controller="HttpListContextMenu">
+			<ul class="dropdown-menu" role="menu">
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-click="block()">移动<span ng-if="context.selHttp.length > 1"><b>{{context.selHttp.length}}</b>项</span>到 <span><select ng-model="moveTo">
+					<option value="" selected="selected">=事务=</option>
+					<option ng-repeat="action in context.actionList" value="{{action.name+' ('+action.type+')'}}">{{action.name+' ('+action.type+')'}}</option>
+				</select></span></a></li>
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-click="delHttp()">删除</a></li>
+				<!-- <li><a class="pointer" role="menuitem" tabindex="1" ng-click="buildHttp()">导出脚本</a></li> -->
+			</ul>
+		</div>
+
+
+		<div class="dropdown context-menu" id="menu-actionItem" ng-controller="ActionListContextMenu">
+			<ul class="dropdown-menu" role="menu">
+				<!-- <li><a class="pointer" role="menuitem" tabindex="1" ng-if="beActionListHide" ng-click="showActionListBox()">展开<b>{{action.name}}</b> </a></li>
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-if="!beActionListHide" ng-click="hideActionListBox()">折叠<b>{{action.name}}</b> </a></li>
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-click="setTarget()">录制到当前 </a></li> -->
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-click="rename()">重命名</a></li>
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-click="createCurrAction()">新增</a></li>
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-click="clearList()">清空请求<b></b></a></li>
+				<!-- <li><a class="pointer" role="menuitem" tabindex="1" ng-click="delAction()">删除 <b></b></a></li>
+				<li><a class="pointer" role="menuitem" tabindex="1" ng-click="buildAction()">导出脚本</a></li> -->
+			</ul>
+		</div>
+
+		<textarea id="vmData" rows="6" cols="66" style="display:none;">
+			{
+				"init": [
+					{
+						"name": "init1",
+						"type": "init",
+						"transaction": "",
+						"rename": false,
+						"requests": [
+							{
+								"url": "http://www.taobao.com/?a=1&b=11\\'go",
+								"method": "GET",
+								"contentType": "html",
+								"timeSpan": 1320,
+								"status": 200,
+								"headers": {
+									"Host": "www.taobao&\\'.com",
+									"Accept-Language": "zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3",
+									"Accept-Encoding": "gzip, deflate",
+									"Connection": "keep-alive"
+								},
+								"body": ""
+							}
+						],
+						"desc": "登录"
+					},
+					{
+						"name": "init2",
+						"type": "init",
+						"transaction": "",
+						"rename": false,
+						"requests": [
+							{
+								"url": "http://www.taobao.com/go/rgn/tb-fp/2014/notice.php?t=4715850&callback=NOTICE",
+								"method": "GET",
+								"contentType": "html",
+								"timeSpan": 1321,
+								"status": 200,
+								"headers": {
+									"Host": "www.taobao.com",
+									"Accept-Language": "zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3",
+									"Accept-Encoding": "gzip, deflate",
+									"X-Requested-With": "XMLHttpRequest",
+									"Referer": "http://www.taobao.com/",
+									"Cookie": "_med=dw:1440&dh:900&pw:1440&ph:900&ist:0",
+									"Connection": "keep-alive"
+								},
+								"body": ""
+							}
+						],
+						"desc": "进首页"
+					}
+				],
+				"end": [
+					{
+						"name": "end1",
+						"type": "end",
+						"transaction": "",
+						"rename": false,
+						"requests": [
+							{
+								"url": "http://www.taobao.com/go/rgn/tb-fp/conve/css1.php",
+								"method": "GET",
+								"contentType": "html",
+								"timeSpan": 1321,
+								"status": 200,
+								"headers": {
+									"Host": "www.taobao.com",
+									"Accept-Language": "zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3",
+									"Accept-Encoding": "gzip, deflate",
+									"Referer": "http://www.taobao.com/",
+									"Cookie": "_med=dw:1440&dh:900&pw:1440&ph:900&ist:0",
+									"Connection": "keep-alive"
+								},
+								"body": ""
+							}
+						],
+						"desc": "退出"
+					},
+					{
+						"name": "end2",
+						"type": "end",
+						"transaction": "",
+						"rename": false,
+						"requests": [
+							{
+								"url": "http://toy.ggg/q.php",
+								"method": "POST",
+								"contentType": "html",
+								"timeSpan": 1322,
+								"status": 200,
+								"headers": {
+									"Host": "toy.ggg",
+									"Accept-Language": "zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3",
+									"Accept-Encoding": "gzip, deflate",
+									"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+									"X-Requested-With": "XMLHttpRequest",
+									"Referer": "http://toy.ggg/post.html",
+									"Content-Length": "18",
+									"Connection": "keep-alive",
+									"Pragma": "no-cache",
+									"Cache-Control": "no-cache"
+								},
+								"body": "name=John&\\\\'t\nime=2pm"
+							}
+						],
+						"desc": "回首页"
+					}
+				],
+				"actions": [
+					{
+						"name": "action1",
+						"type": "action",
+						"transaction": true,
+						"rename": false,
+						"requests": [
+							{
+								"url": "http://www.baidu.com/",
+								"method": "GET",
+								"contentType": "html",
+								"timeSpan": 1322,
+								"status": 200,
+								"headers": {
+									"Host": "www.baidu.com",
+									"Accept-Language": "zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3",
+									"Accept-Encoding": "gzip, deflate",
+									"Cookie": "BAIDUID=C6F4C9E2F68789A07830CF34D663E746:FG=1; BAIDUPSID=C6F4C9E2F68789A07830CF34D663E746; BD_HOME=0; H_PS_PSSID=9206_9552_9009_1442_9182_7801_9537_9499_9510_6018_9619_9700_9250_9532_9478_7799_9453_9192_9023_9188; BD_UPN=133143",
+									"Connection": "keep-alive"
+								},
+								"body": ""
+							}
+						],
+						"desc": "发帖"
+					}
+				]
+			}
+		</textarea>
+
+		<button id="renderVm" class="btn" type="button" style="display:none;">renderVm</button>
+		<textarea id="vm" name="" rows="6" cols="66" style="display:none;">vm</textarea>
+		<textarea id="vmResult" name="" rows="66" cols="66" style="display:none;"></textarea>
+
+		<textarea rows="43" cols="33" id="edit-box" style="width:100%;height:100%;display:none;"></textarea>
+		<script type="text/javascript" src="page.js"></script>
+
+
+
+
+
+
+
+
+	</body>
+</html>
